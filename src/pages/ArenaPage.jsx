@@ -15,11 +15,11 @@ export const ArenaPage = () => {
   const { cases, materials, activeCaseId, unlockedCases, arenaPosts, addArenaReply, syntheses, closedRooms, setActivePage, currentUser } = useApp();
 
   const activeCase = cases.find((c) => c.id === activeCaseId) || cases[0];
-  const material = materials.find((m) => m.id === activeCase.materialId);
-  const isUnlocked = unlockedCases.includes(activeCase.id);
-  const posts = arenaPosts.filter((p) => p.caseId === activeCase.id);
-  const synth = syntheses[activeCase.id];
-  const closed = Boolean(closedRooms[activeCase.id]);
+  const material = activeCase && materials.find((m) => m.id === activeCase.materialId);
+  const isUnlocked = Boolean(activeCase) && unlockedCases.includes(activeCase.id);
+  const posts = activeCase ? arenaPosts.filter((p) => p.caseId === activeCase.id) : [];
+  const synth = activeCase && syntheses[activeCase.id];
+  const closed = Boolean(activeCase && closedRooms[activeCase.id]);
 
   const [replyingId, setReplyingId] = useState(null);
   const [label, setLabel] = useState('Menguatkan');
@@ -38,6 +38,20 @@ export const ArenaPage = () => {
     setText('');
     setReplyingId(null);
   };
+
+  if (!activeCase) {
+    return (
+      <div className="page-wrapper">
+        <div className="container">
+          <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+            <h1 style={{ fontSize: '1.75rem' }}>Arena debat belum dibuka</h1>
+            <p className="muted" style={{ marginTop: '0.5rem' }}>Arena terbuka setelah gurumu menerbitkan topik dan kamu menjawab salah satunya.</p>
+            <button className="btn btn-primary" style={{ marginTop: '1.25rem' }} onClick={() => setActivePage('spin')}>Ke latihan</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const header = (
     <div className="page-head">

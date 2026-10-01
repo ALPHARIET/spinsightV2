@@ -1,141 +1,136 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  INITIAL_MATERIALS,
-  INITIAL_CASES,
-  INITIAL_ARENA_POSTS,
-  INITIAL_SYNTHESIS,
-  INITIAL_STUDENT_JOURNAL,
-  INITIAL_EVALUATION_RECORDS,
-  INITIAL_FORUM_POSTS,
-  KELAS,
-  SEKOLAH,
-  GURU_ID,
-  GURU_NAMA,
-  studentId,
-} from '../data/seedData';
 import { aiService } from '../services/aiService';
 import { analyzeAnswer } from '../services/aiClient';
-import { dataApi } from '../services/dataClient';
+import { authApi, dataApi, getSession, setSession } from '../services/dataClient';
 import { stamp } from '../lib/labels';
 
 const AppContext = createContext();
 
-const DATA_VERSION = '6';
-const DATA_KEYS = ['spin_session', 'spin_sessions', 'active_case', 'materials', 'cases', 'unlocked_cases', 'evaluations', 'forum_posts', 'arena_posts', 'synthesis', 'closed_rooms', 'journals'];
-const PAGES = ['landing', 'spin', 'forum', 'arena', 'pendamping', 'jurnal'];
+const PAGES = ['landing', 'spin', 'forum', 'arena', 'pendamping', 'jurnal', 'gabung'];
+const ACTIVE_CLASS_KEY = 'spinsight_active_class';
+const ACTIVE_CASE_KEY = 'spinsight_active_case';
 
+// Hapus sisa data lokal versi lama (sebelum ada akun dan kelas).
 try {
-  if (localStorage.getItem('spinsight_data_version') !== DATA_VERSION) {
-    DATA_KEYS.forEach((k) => localStorage.removeItem('spinsight_' + k));
-    localStorage.setItem('spinsight_data_version', DATA_VERSION);
-  }
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith('spinsight_') && ![ACTIVE_CLASS_KEY, ACTIVE_CASE_KEY, 'spinsight_session'].includes(k))
+    .forEach((k) => localStorage.removeItem(k));
 } catch {}
 
-function usePersisted(key, initial) {
-  const [value, setValue] = useState(() => {
-    try {
-      const saved = localStorage.getItem('spinsight_' + key);
-      return saved !== null ? JSON.parse(saved) : initial;
-    } catch {
-      return initial;
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem('spinsight_' + key, JSON.stringify(value));
-    } catch {}
-  }, [key, value]);
-  return [value, setValue];
-}
+const readLocal = (key) => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+const writeLocal = (key, value) => {
+  try {
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch {}
+};
 
 const pageFromPath = () => {
   const path = window.location.pathname.replace(/^\//, '').toLowerCase();
   return PAGES.includes(path) ? path : 'landing';
 };
 
-const makeUser = (role, nama) => {
-  const guru = role === 'pendamping' || role === 'guru';
-  const name = nama || (guru ? GURU_NAMA : 'Jason Pratama');
-  return {
-    id: guru ? GURU_ID : studentId(name),
-    nama: name,
-    role: guru ? 'pendamping' : 'siswa',
-    kelas: KELAS,
-    sekolah: SEKOLAH,
-  };
+const uid = (prefix) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+const EMPTY = {
+  classes: [],
+  members: [],
+  materials: [],
+  cases: [],
+  evaluationRecords: [],
+  journals: [],
+  arenaPosts: [],
+  forumPosts: [],
+  syntheses: {},
+  closedRooms: {},
+  spinSessions: {},
 };
 
 export const AppProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = usePersisted('user', makeUser('siswa'));
-  const [isAuthenticated, setIsAuthenticated] = usePersisted('is_authenticated', false);
-  const [materials, setMaterials] = usePersisted('materials', INITIAL_MATERIALS);
-  const [cases, setCases] = usePersisted('cases', INITIAL_CASES);
-  const [activeCaseId, setActiveCaseId] = usePersisted('active_case', INITIAL_CASES[0].id);
-  const [evaluationRecords, setEvaluationRecords] = usePersisted('evaluations', INITIAL_EVALUATION_RECORDS);
-  const [forumPosts, setForumPosts] = usePersisted('forum_posts', INITIAL_FORUM_POSTS);
-  const [arenaPosts, setArenaPosts] = usePersisted('arena_posts', INITIAL_ARENA_POSTS);
-  const [syntheses, setSyntheses] = usePersisted('synthesis', { 'case-1': INITIAL_SYNTHESIS });
-  const [closedRooms, setClosedRooms] = usePersisted('closed_rooms', {});
-  const [journals, setJournals] = usePersisted('journals', INITIAL_STUDENT_JOURNAL);
-  const [spinSessions, setSpinSessions] = usePersisted('spin_sessions', {});
+  const [me, setMe] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [activeClassId, setActiveClassId] = useState(() => readLocal(ACTIVE_CLASS_KEY));
+  const [classes, setClasses] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [cases, setCases] = useState([]);
+  const [evaluationRecords, setEvaluationRecords] = useState([]);
+  const [journals, setJournals] = useState([]);
+  const [arenaPosts, setArenaPosts] = useState([]);
+  const [forumPosts, setForumPosts] = useState([]);
+  const [syntheses, setSyntheses] = useState({});
+  const [closedRooms, setClosedRooms] = useState({});
+  const [spinSessions, setSpinSessions] = useState({});
+  const [activeCaseId, setActiveCaseIdState] = useState(() => readLocal(ACTIVE_CASE_KEY));
   const [activePage, setActivePageState] = useState(pageFromPath);
   const [teacherTab, setTeacherTab] = useState('rekap_ai');
-
-  // Mode data: 'loading' saat cek database, 'on' = Supabase, 'off' = localStorage di peramban ini saja.
-  const [dataMode, setDataMode] = useState('loading');
   const [dataError, setDataError] = useState('');
-  const dbOn = useRef(false);
-  const pending = useRef(0);
-  const userRef = useRef(currentUser);
-  userRef.current = currentUser;
 
-  const sync = (action, payload = {}) => {
-    if (!dbOn.current) return Promise.resolve(null);
-    pending.current += 1;
-    return dataApi(action, { actor: userRef.current?.id, ...payload })
-      .catch((e) => {
-        setDataError(`Perubahan belum tersimpan ke database: ${e.message}`);
-        return null;
-      })
-      .finally(() => {
-        pending.current -= 1;
-      });
+  const pending = useRef(0);
+  const meRef = useRef(me);
+  meRef.current = me;
+  const classRef = useRef(activeClassId);
+  classRef.current = activeClassId;
+
+  const setActiveCaseId = (id) => {
+    setActiveCaseIdState(id);
+    writeLocal(ACTIVE_CASE_KEY, id);
   };
 
-  const loadData = useCallback(async () => {
-    if (pending.current > 0) return;
+  const apply = (d) => {
+    setMe(d.me);
+    setClasses(d.classes || []);
+    setActiveClassId(d.activeClassId);
+    writeLocal(ACTIVE_CLASS_KEY, d.activeClassId);
+    setMembers(d.members || []);
+    setMaterials(d.materials || []);
+    setCases(d.cases || []);
+    setEvaluationRecords(d.evaluationRecords || []);
+    setJournals(d.journals || []);
+    setArenaPosts(d.arenaPosts || []);
+    setForumPosts(d.forumPosts || []);
+    setSyntheses(d.syntheses || {});
+    setClosedRooms(d.closedRooms || {});
+    setSpinSessions(d.spinSessions || {});
+  };
+
+  const clearAll = () => {
+    setMe(null);
+    apply({ ...EMPTY, me: null, activeClassId: null });
+    setActiveCaseId(null);
+  };
+
+  const loadData = useCallback(async (classId = classRef.current, { force = false } = {}) => {
+    if (pending.current > 0 && !force) return;
     try {
-      const d = await dataApi('bootstrap');
-      if (d.enabled === false) {
-        setDataMode('off');
-        return;
-      }
-      dbOn.current = true;
-      setMaterials(d.materials);
-      setCases(d.cases);
-      setEvaluationRecords(d.evaluationRecords);
-      setJournals(d.journals);
-      setArenaPosts(d.arenaPosts);
-      setForumPosts(d.forumPosts);
-      setSyntheses(d.syntheses);
-      setClosedRooms(d.closedRooms);
-      setSpinSessions(d.spinSessions);
-      setDataMode('on');
+      const d = await dataApi('bootstrap', { classId });
+      apply(d);
       setDataError('');
+      return d;
     } catch (e) {
-      if (dbOn.current) {
-        setDataError(`Gagal memuat data terbaru: ${e.message}`);
-        return;
+      if (e.status === 401) {
+        setSession(null);
+        clearAll();
+      } else {
+        setDataError(`Gagal memuat data: ${e.message}`);
       }
-      setDataMode('off');
-      setDataError(`Database tidak tersedia, data hanya tersimpan di peramban ini. ${e.message}`);
+      return null;
     }
   }, []);
 
   useEffect(() => {
-    loadData();
+    (async () => {
+      if (getSession()) await loadData(classRef.current, { force: true });
+      setAuthReady(true);
+    })();
     const onFocus = () => {
-      if (dbOn.current && document.visibilityState === 'visible') loadData();
+      if (meRef.current && document.visibilityState === 'visible') loadData();
     };
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
@@ -145,10 +140,28 @@ export const AppProvider = ({ children }) => {
     };
   }, [loadData]);
 
-  const spinSession = spinSessions[currentUser?.id] || null;
+  const sync = (action, payload = {}) => {
+    pending.current += 1;
+    return dataApi(action, payload)
+      .catch((e) => {
+        setDataError(`Perubahan belum tersimpan: ${e.message}`);
+        return null;
+      })
+      .finally(() => {
+        pending.current -= 1;
+      });
+  };
+
+  const activeClass = classes.find((c) => c.id === activeClassId) || null;
+  const currentUser = useMemo(
+    () => (me ? { ...me, kelas: activeClass?.nama || '', sekolah: activeClass?.sekolah || '' } : null),
+    [me, activeClass]
+  );
+
+  const spinSession = spinSessions[me?.id] || null;
   const setMySpin = (next) =>
     setSpinSessions((prev) => {
-      const id = userRef.current?.id;
+      const id = meRef.current?.id;
       const value = typeof next === 'function' ? next(prev[id] || null) : next;
       const copy = { ...prev };
       if (value) copy[id] = value;
@@ -160,14 +173,15 @@ export const AppProvider = ({ children }) => {
 
   // Arena terbuka per siswa: hanya topik yang sudah pernah dia jawab sendiri.
   const unlockedCases = useMemo(
-    () => [...new Set(evaluationRecords.filter((r) => r.siswaId === currentUser?.id).map((r) => r.caseId))],
-    [evaluationRecords, currentUser]
+    () => [...new Set(evaluationRecords.filter((r) => r.siswaId === me?.id).map((r) => r.caseId))],
+    [evaluationRecords, me]
   );
 
   const setActivePage = (page) => {
     setActivePageState(page);
     const target = page === 'landing' ? '/' : `/${page}`;
     if (window.location.pathname !== target) window.history.pushState({ page }, '', target);
+    window.scrollTo(0, 0);
   };
 
   useEffect(() => {
@@ -176,23 +190,74 @@ export const AppProvider = ({ children }) => {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  const login = (role = 'siswa', nama = null) => {
-    const user = makeUser(role, nama);
-    userRef.current = user;
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-    setActivePage(user.role === 'pendamping' ? 'pendamping' : 'spin');
-    if (dbOn.current) loadData();
+  // ---------- Akun ----------
+
+  const afterLogin = async ({ session }) => {
+    setSession(session);
+    const d = await loadData(readLocal(ACTIVE_CLASS_KEY), { force: true });
+    if (!d) throw new Error('Berhasil masuk, tapi data kelas gagal dimuat. Coba muat ulang halaman.');
+    setActivePage(d.me?.role === 'pendamping' ? 'pendamping' : 'spin');
   };
 
+  const login = async (email, password) => afterLogin(await authApi('signin', { email, password }));
+  const signup = async (form) => afterLogin(await authApi('signup', form));
+
   const logout = () => {
-    setIsAuthenticated(false);
+    setSession(null);
+    writeLocal(ACTIVE_CLASS_KEY, null);
+    clearAll();
+    setTeacherTab('rekap_ai');
     setActivePage('landing');
   };
 
+  // ---------- Kelas ----------
+
+  const switchClass = async (classId) => {
+    if (!classId || classId === activeClassId) return;
+    setActiveCaseId(null);
+    await loadData(classId, { force: true });
+  };
+
+  const createClass = async ({ nama, sekolah }) => {
+    const { class: kelas } = await dataApi('createClass', { nama, sekolah });
+    await loadData(kelas.id, { force: true });
+    setTeacherTab('kelas');
+    return kelas;
+  };
+
+  const joinClass = async (kode) => {
+    const { class: kelas } = await dataApi('joinClass', { kode });
+    setActiveCaseId(null);
+    await loadData(kelas.id, { force: true });
+    return kelas;
+  };
+
+  const regenerateCode = async (classId) => {
+    const { kode } = await dataApi('regenerateCode', { classId });
+    setClasses((prev) => prev.map((c) => (c.id === classId ? { ...c, kode } : c)));
+    return kode;
+  };
+
+  const deleteClass = async (classId) => {
+    await dataApi('deleteClass', { classId });
+    await loadData(null, { force: true });
+  };
+
+  const removeMember = async (userId) => {
+    await dataApi('removeMember', { classId: activeClassId, userId });
+    await loadData(activeClassId, { force: true });
+  };
+
+  const leaveClass = async (classId) => {
+    await dataApi('leaveClass', { classId });
+    await loadData(null, { force: true });
+  };
+
+  // ---------- Spin ----------
+
   const lockSpin = (materialId, caseId) => {
     setActiveCaseId(caseId);
-    const session = { userId: currentUser?.id, materialId, caseId, spunAt: Date.now(), startedAt: null };
+    const session = { userId: me?.id, classId: activeClassId, materialId, caseId, spunAt: Date.now(), startedAt: null };
     setMySpin(session);
     sync('lockSpin', { session }).then((r) => {
       if (r?.conflict) {
@@ -210,11 +275,13 @@ export const AppProvider = ({ children }) => {
     sync('clearSpin');
   };
 
+  // ---------- Materi & topik (guru) ----------
+
   const publishMaterial = ({ judul, mapel, fileName, fileSize, ai, topikTerpilih }) => {
-    const id = 'mat-' + Date.now();
+    const id = uid('mat');
     const material = {
       id,
-      kelasId: currentUser?.kelas || KELAS,
+      classId: activeClassId,
       judul,
       mapel,
       topik: ai.topikRoda,
@@ -226,8 +293,8 @@ export const AppProvider = ({ children }) => {
       deskripsi: ai.ringkasan,
       poinKunci: ai.poinKunci,
     };
-    const newCases = topikTerpilih.map((t, i) => ({
-      id: `case-${Date.now()}-${i}`,
+    const newCases = topikTerpilih.map((t) => ({
+      id: uid('case'),
       materialId: id,
       judulKasus: t.judulKasus,
       teksKasus: t.teksKasus,
@@ -239,7 +306,7 @@ export const AppProvider = ({ children }) => {
     }));
     setMaterials((prev) => [material, ...prev]);
     setCases((prev) => [...newCases, ...prev]);
-    sync('publishMaterial', { material, cases: newCases });
+    sync('publishMaterial', { classId: activeClassId, material, cases: newCases });
     return { material, cases: newCases };
   };
 
@@ -253,7 +320,7 @@ export const AppProvider = ({ children }) => {
   const addCase = (fields) => {
     const material = materials.find((m) => m.id === fields.materialId);
     const kasus = {
-      id: 'case-' + Date.now(),
+      id: uid('case'),
       aktif: true,
       kategori: material?.topik || 'Topik guru',
       kataKunci: [],
@@ -283,19 +350,21 @@ export const AppProvider = ({ children }) => {
     sync('updateCase', { id, fields });
   };
 
+  // ---------- Forum ----------
+
   const author = () => ({
-    penulisId: currentUser.id,
-    penulisNama: currentUser.nama,
-    penulisRole: currentUser.role,
+    penulisId: me.id,
+    penulisNama: me.nama,
+    penulisRole: me.role,
     tanggal: stamp(),
   });
 
   const addForumPost = ({ materiId, kategori, judul, isi }) => {
     const materi = materials.find((m) => m.id === materiId) || materials[0];
     const post = {
-      id: 'fp-' + Date.now(),
+      id: uid('fp'),
       materiId: materi?.id,
-      materiJudul: materi?.judul || 'Materi',
+      materiJudul: materi?.judul || 'Diskusi umum',
       kategori: kategori || 'Diskusi Kasus',
       judul: judul.trim(),
       isi: isi.trim(),
@@ -304,32 +373,35 @@ export const AppProvider = ({ children }) => {
       comments: [],
     };
     setForumPosts((prev) => [post, ...prev]);
-    sync('addForumPost', { post });
+    sync('addForumPost', { classId: activeClassId, post });
     return post;
   };
 
   const addComment = (postId, isi) => {
     if (!isi?.trim()) return null;
-    const comment = { id: 'fpc-' + Date.now(), isi: isi.trim(), ...author() };
+    const comment = { id: uid('fpc'), isi: isi.trim(), ...author() };
     setForumPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: [...(p.comments || []), comment] } : p)));
     sync('addComment', { postId, comment });
     return comment;
   };
 
   const toggleLikeForumPost = (postId) => {
-    const me = currentUser.id;
+    const mine = me.id;
     setForumPosts((prev) =>
       prev.map((p) => {
         if (p.id !== postId) return p;
         const likedBy = p.likedBy || [];
-        return { ...p, likedBy: likedBy.includes(me) ? likedBy.filter((id) => id !== me) : [...likedBy, me] };
+        return { ...p, likedBy: likedBy.includes(mine) ? likedBy.filter((id) => id !== mine) : [...likedBy, mine] };
       })
     );
     sync('toggleLike', { postId });
   };
 
+  // ---------- Jawaban siswa ----------
+
   const submitAnswer = async ({ caseId, jawaban, durasiDetik, lewatSuara }) => {
-    const targetCase = cases.find((c) => c.id === caseId) || cases[0];
+    const targetCase = cases.find((c) => c.id === caseId);
+    if (!targetCase) throw new Error('Topik ini sudah dihapus gurumu. Mulai latihan baru.');
     const material = materials.find((m) => m.id === targetCase.materialId);
     const ai = await analyzeAnswer({
       jawaban,
@@ -363,10 +435,10 @@ export const AppProvider = ({ children }) => {
     };
 
     const evaluation = {
-      id: 'eval-' + Date.now(),
-      siswaId: currentUser.id,
-      siswaNama: currentUser.nama,
-      kelas: currentUser.kelas || KELAS,
+      id: uid('eval'),
+      classId: activeClassId,
+      siswaId: me.id,
+      siswaNama: me.nama,
       caseId: targetCase.id,
       topikKasus: targetCase.judulKasus,
       levelBloom: targetCase.levelBloom,
@@ -382,8 +454,9 @@ export const AppProvider = ({ children }) => {
       sumberAnalisis: ai.sumber,
     };
     const journal = {
-      id: 'jrn-' + Date.now(),
-      siswaId: currentUser.id,
+      id: uid('jrn'),
+      classId: activeClassId,
+      siswaId: me.id,
       tanggal,
       caseJudul: targetCase.judulKasus,
       levelBloom: targetCase.levelBloom,
@@ -395,10 +468,11 @@ export const AppProvider = ({ children }) => {
       dimensi,
     };
     const arenaPost = {
-      id: 'post-' + Date.now(),
+      id: uid('post'),
+      classId: activeClassId,
       caseId: targetCase.id,
-      siswaId: currentUser.id,
-      siswaNama: currentUser.nama,
+      siswaId: me.id,
+      siswaNama: me.nama,
       kutub: ai.ringkasan?.klaim ? ai.ringkasan.klaim.slice(0, 40) : 'Pendapat baru',
       posisiX: Math.floor(Math.random() * 40) + 30,
       posisiY: Math.floor(Math.random() * 50) + 25,
@@ -430,8 +504,10 @@ export const AppProvider = ({ children }) => {
     };
   };
 
+  // ---------- Arena ----------
+
   const addArenaReply = (postId, { label, isi }) => {
-    const reply = { id: 'rep-' + Date.now(), siswaId: currentUser.id, siswaNama: currentUser.nama, label, isi, waktu: 'Baru saja' };
+    const reply = { id: uid('rep'), siswaId: me.id, siswaNama: me.nama, label, isi, waktu: 'Baru saja' };
     setArenaPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, replies: [...p.replies, reply] } : p)));
     sync('addArenaReply', { postId, reply });
   };
@@ -452,13 +528,27 @@ export const AppProvider = ({ children }) => {
 
   return (
     <AppContext.Provider value={{
+      authReady,
       currentUser,
-      isAuthenticated,
+      isAuthenticated: Boolean(me),
       login,
+      signup,
       logout,
+      classes,
+      activeClass,
+      activeClassId,
+      members,
+      switchClass,
+      createClass,
+      joinClass,
+      regenerateCode,
+      deleteClass,
+      removeMember,
+      leaveClass,
       materials,
       cases,
       activeCaseId,
+      setActiveCaseId,
       unlockedCases,
       evaluationRecords,
       forumPosts,
@@ -487,10 +577,9 @@ export const AppProvider = ({ children }) => {
       addArenaReply,
       closeDiscussionRoom,
       reopenDiscussionRoom,
-      dataMode,
       dataError,
       setDataError,
-      reloadData: loadData,
+      reloadData: () => loadData(classRef.current, { force: true }),
     }}>
       {children}
     </AppContext.Provider>

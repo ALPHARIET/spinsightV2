@@ -6,10 +6,12 @@ export const DEMO_STUDENTS = ['Jason Pratama', 'Nabila Putri', 'Budi Prakoso', '
 
 export const studentId = (nama) => 'usr-' + nama.toLowerCase().replace(/[^a-z]+/g, '-');
 
-export const INITIAL_USERS = [
-  { id: GURU_ID, nama: GURU_NAMA, role: 'pendamping', kelas: KELAS, sekolah: SEKOLAH },
-  ...DEMO_STUDENTS.map((nama) => ({ id: studentId(nama), nama, role: 'siswa', kelas: KELAS, sekolah: SEKOLAH })),
-];
+// Akun contoh untuk juri. Sengaja publik: ditampilkan di halaman masuk dan README.
+export const DEMO_ACCOUNTS = {
+  guru: { email: 'guru@spinsight.test', password: 'spinsight123', nama: GURU_NAMA, role: 'pendamping' },
+  siswa: { email: 'siswa@spinsight.test', password: 'spinsight123', nama: 'Jason Pratama', role: 'siswa' },
+};
+export const DEMO_CLASS = { id: 'kelas-demo', nama: KELAS, sekolah: SEKOLAH, kode: 'DEMO26' };
 
 export const INITIAL_MATERIALS = [
   {
@@ -395,7 +397,7 @@ export const INITIAL_STUDENT_JOURNAL = [
     levelBloom: 'Evaluasi',
     durasiBicara: '01:14',
     skorArgumen: 89,
-    transkrip: 'Menurut saya, melarang total AI di sekolah adalah langkah mundur yang naif. Dunia kerja menuntut kita menguasai kolaborasi dengan alat ini. Yang seharusnya diuji guru bukan lagi teks akhirnya, melainkan logika prompt dan kemampuan kita memverifikasi fakta hasil AI dengan sumber primer.',
+    transkrip: 'Menurut saya, sekolah sebaiknya tidak melarang total AI saat ujian. Karena larangan tanpa pembiasaan membuat siswa memakainya diam-diam di rumah. Misalnya, ujian bisa dibagi dua: tahap tanpa gawai untuk konsep dasar, lalu tahap dengan AI di mana siswa wajib menunjukkan cara memverifikasi jawabannya.',
     cermin: {
       klaim: 'Melarang AI keliru; sekolah harus menguji verifikasi prompt.',
       alasan: 'Dunia industri nyata membutuhkan kecakapan kerja bersama AI.',

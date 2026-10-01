@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { ArrowRight, FileText, LockOpen, ShieldCheck, X, GraduationCap, BookOpen, Mic, Upload, Sparkles } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { ArrowRight, FileText, LockOpen, ShieldCheck, Mic, Upload, Sparkles } from 'lucide-react';
 import { BrandMark } from '../components/BrandMark';
 import { StabiloLegend, StabiloText } from '../components/Stabilo';
 import { SlotReel } from '../components/SlotReel';
 import { TimerRing } from '../components/TimerRing';
-import { DEMO_STUDENTS as STUDENTS, GURU_NAMA } from '../data/seedData';
+import { INITIAL_CASES } from '../data/seedData';
+import { AuthDialog } from '../components/AuthDialog';
 
 const CONTOH =
   'Menurut saya, larangan plastik di kantin sebaiknya bertahap. Karena kalau langsung dilarang, pedagang kantin yang paling dirugikan. Misalnya, sekolah bisa menyediakan wadah pinjam dulu, baru setelah itu plastik sekali pakai dilarang.';
@@ -17,16 +17,14 @@ const Shot = ({ src, alt, style }) => (
 );
 
 export const LandingPage = () => {
-  const { login, cases } = useApp();
-  const topics = cases.filter((c) => c.materialId === 'mat-4' || c.materialId === 'mat-1').slice(0, 6).map((c) => ({ id: c.id, label: c.judulKasus }));
+  const topics = INITIAL_CASES.filter((c) => c.materialId === 'mat-4' || c.materialId === 'mat-1').slice(0, 6).map((c) => ({ id: c.id, label: c.judulKasus }));
   const [demoLock, setDemoLock] = useState(null);
   const reduce = useReducedMotion();
-  const [modal, setModal] = useState(false);
-  const [role, setRole] = useState('siswa');
-  const [nama, setNama] = useState(STUDENTS[0]);
+  const [auth, setAuth] = useState(null);
 
-  const cobaSiswa = () => login('siswa', 'Jason Pratama');
-  const masukGuru = () => login('pendamping', GURU_NAMA);
+  const masuk = () => setAuth({ mode: 'masuk', role: 'siswa' });
+  const cobaSiswa = () => setAuth({ mode: 'daftar', role: 'siswa' });
+  const masukGuru = () => setAuth({ mode: 'daftar', role: 'guru' });
 
   const rise = (d = 0) =>
     reduce
@@ -47,8 +45,8 @@ export const LandingPage = () => {
             <a className="navlink" href="#guru">Untuk guru</a>
           </nav>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <button className="btn btn-ghost hide-sm" onClick={() => setModal(true)}>Masuk</button>
-            <button className="btn btn-primary btn-sm" onClick={cobaSiswa}>Coba spin sekarang</button>
+            <button className="btn btn-ghost btn-sm" onClick={masuk}>Masuk</button>
+            <button className="btn btn-primary btn-sm" onClick={cobaSiswa}>Daftar<span className="hide-sm">&nbsp;gratis</span></button>
           </div>
         </div>
       </header>
@@ -67,7 +65,7 @@ export const LandingPage = () => {
               <button className="btn btn-primary btn-lg" onClick={cobaSiswa}>
                 Coba spin sekarang <ArrowRight size={18} />
               </button>
-              <button className="btn btn-secondary btn-lg" onClick={masukGuru}>Masuk sebagai guru</button>
+              <button className="btn btn-secondary btn-lg" onClick={masuk}>Masuk / akun contoh</button>
             </div>
           </motion.div>
 
@@ -167,7 +165,7 @@ export const LandingPage = () => {
                 Kirim PDF, DOCX, atau teks materi. AI menyusun topik bertingkat yang bisa kamu sunting, lalu setiap umpan balik ke siswa merujuk ke poin dan halaman materimu sendiri.
               </p>
               <button className="btn btn-secondary btn-lg" style={{ marginTop: '1.75rem' }} onClick={masukGuru}>
-                Masuk sebagai guru <ArrowRight size={18} />
+                Daftar sebagai guru <ArrowRight size={18} />
               </button>
             </motion.div>
           </div>
@@ -211,52 +209,7 @@ export const LandingPage = () => {
         </div>
       </footer>
 
-      {modal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Masuk ke SpinSight"
-          onClick={(e) => e.target === e.currentTarget && setModal(false)}
-          style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(5, 0, 56, 0.35)', display: 'grid', placeItems: 'center', padding: '1rem' }}
-        >
-          <div className="card" style={{ width: '100%', maxWidth: 420, padding: '1.75rem', boxShadow: 'var(--shadow-lg)', position: 'relative' }}>
-            <button className="btn btn-ghost btn-icon" style={{ position: 'absolute', top: 12, right: 12 }} onClick={() => setModal(false)} aria-label="Tutup">
-              <X size={18} />
-            </button>
-            <BrandMark size={36} />
-            <h2 style={{ fontSize: '1.5rem', marginTop: '1rem' }}>Masuk ke SpinSight</h2>
-            <p className="muted" style={{ marginTop: '0.25rem' }}>Akun demo, tanpa kata sandi.</p>
-
-            <div className="toggle" role="group" aria-label="Peran" style={{ marginTop: '1.25rem', width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-              <button aria-pressed={role === 'siswa'} onClick={() => setRole('siswa')} style={{ justifyContent: 'center' }}>
-                <GraduationCap size={16} /> Siswa
-              </button>
-              <button aria-pressed={role === 'guru'} onClick={() => setRole('guru')} style={{ justifyContent: 'center' }}>
-                <BookOpen size={16} /> Guru
-              </button>
-            </div>
-
-            {role === 'siswa' ? (
-              <label style={{ display: 'block', marginTop: '1rem' }}>
-                <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Pilih siswa</span>
-                <select className="select-custom" style={{ marginTop: '0.4rem' }} value={nama} onChange={(e) => setNama(e.target.value)}>
-                  {STUDENTS.map((s) => <option key={s} value={s}>{s} · XI-IPA 2</option>)}
-                </select>
-              </label>
-            ) : (
-              <p style={{ marginTop: '1rem', color: 'var(--ink-2)' }}>Masuk sebagai Dra. Sri Wahyuni, M.Pd., wali kelas XI-IPA 2.</p>
-            )}
-
-            <button
-              className="btn btn-primary btn-lg"
-              style={{ width: '100%', marginTop: '1.25rem' }}
-              onClick={() => (role === 'guru' ? masukGuru() : login('siswa', nama))}
-            >
-              Masuk <ArrowRight size={18} />
-            </button>
-          </div>
-        </div>
-      )}
+      {auth && <AuthDialog initialMode={auth.mode} initialRole={auth.role} onClose={() => setAuth(null)} />}
     </div>
   );
 };

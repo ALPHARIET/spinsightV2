@@ -51,7 +51,8 @@ async function api(req, res, route) {
     return send(res, 413, JSON.stringify({ error: 'Permintaan terlalu besar.' }), { 'Content-Type': TYPES['.json'] });
   }
   const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
-  const out = await handleApi(route, { method: req.method, body, ip });
+  const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  const out = await handleApi(route, { method: req.method, body, ip, token });
   send(res, out.status, JSON.stringify(out.json), { 'Content-Type': TYPES['.json'], 'Cache-Control': 'no-store' });
 }
 
@@ -81,7 +82,7 @@ async function staticFile(req, res, pathname) {
 const server = http.createServer(async (req, res) => {
   try {
     const { pathname } = new URL(req.url, 'http://localhost');
-    const m = pathname.match(/^\/api\/(topics|analyze|status|data)\/?$/);
+    const m = pathname.match(/^\/api\/(topics|analyze|status|data|auth)\/?$/);
     if (m) return await api(req, res, m[1]);
     if (pathname.startsWith('/api/')) return send(res, 404, JSON.stringify({ error: 'Endpoint tidak ditemukan.' }), { 'Content-Type': TYPES['.json'] });
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');

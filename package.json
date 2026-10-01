@@ -8,7 +8,8 @@
     "build": "vite build",
     "start": "node server/index.js",
     "preview": "vite preview",
-    "db:reset": "node --env-file=.env scripts/db-reset.js"
+    "db:reset": "node --env-file=.env scripts/db-reset.js",
+    "test:flow": "node --env-file=.env scripts/test-flow.js"
   },
   "dependencies": {
     "@fontsource-variable/outfit": "^5.3.0",

@@ -71,22 +71,42 @@ Render menjalankan `server/index.js` (server Node yang menyajikan `dist/` dan `/
 
 Layanan gratis Render tidur setelah sekitar 15 menit tanpa pengunjung, dan permintaan pertama sesudahnya butuh waktu untuk bangun. Buka web beberapa menit sebelum demo.
 
-### Database (Supabase, opsional)
-Tanpa Supabase, data tersimpan di `localStorage` peramban (satu perangkat). Dengan Supabase, data guru dan siswa tersimpan bersama dan bisa dibuka dari perangkat mana pun.
+### Database & akun (Supabase, wajib)
+Login, kelas, dan semua data disimpan di Supabase (PostgreSQL + Supabase Auth).
 
 1. Buat project di [supabase.com](https://supabase.com).
 2. Buka **SQL Editor → New query**, tempel isi `supabase/schema.sql`, lalu **Run**.
-3. Dari **Project Settings → API**, salin Project URL dan `service_role` key ke `.env`:
+3. Dari **Project Settings → API Keys**, salin Project URL dan **secret** key (atau `service_role`) ke `.env`:
    ```
    SUPABASE_URL=https://xxxxxxxx.supabase.co
    SUPABASE_SERVICE_ROLE_KEY=...
    ```
-   Isi juga keduanya di Vercel (**Settings → Environment Variables**), atau pasang integrasi Supabase dari Vercel Marketplace.
-4. Jalankan ulang `npm run dev`. Data demo diisi otomatis saat database masih kosong. Untuk mengembalikan data demo: `npm run db:reset`.
+   Isi juga keduanya di hosting (Render/Vercel → Environment Variables).
+4. Jalankan `npm run dev`. Akun dan kelas contoh dibuat otomatis saat server pertama kali berjalan.
 
-Browser tidak pernah memegang key Supabase. Semua akses lewat `/api/data` di server, dan semua tabel memakai RLS tanpa policy, sehingga anon key tidak bisa membaca atau menulis apa pun. Server juga memeriksa peran: hanya akun guru yang bisa mengubah materi, topik, dan ruang diskusi.
+Perintah lain:
+- `npm run db:reset` mengembalikan **kelas contoh** ke data awal. Kelas dan akun asli tidak disentuh.
+- `npm run test:flow` menguji alur kelas langsung ke database: buat kelas, gabung dengan kode, hak akses guru/siswa, spin sekali, rekap nilai, forum, ganti kode, dan keluarkan siswa.
+
+**Keamanan.** Browser tidak pernah memegang key Supabase. Login lewat `/api/auth`, lalu setiap permintaan `/api/data`, `/api/topics`, dan `/api/analyze` membawa token yang diperiksa server ke Supabase Auth. Server mengecek kepemilikan kelas di setiap aksi: hanya guru pemilik kelas yang bisa mengubah materi, topik, kode, dan anggota; siswa hanya bisa mengakses kelas yang dia ikuti. Semua tabel memakai RLS tanpa policy, sehingga key publik tidak bisa membaca atau menulis apa pun.
 
 Catatan: project Supabase gratis dijeda otomatis bila lama tidak dipakai. Buka dashboard Supabase beberapa hari sebelum penilaian.
+
+## 👥 Akun, Kelas, dan Akun Contoh
+
+1. **Daftar** sebagai guru atau siswa (nama, email, kata sandi). Tidak ada verifikasi email.
+2. **Guru** membuat kelas dan mendapat **kode undangan** 6 karakter (Portal Guru → Kelas & Kode). Kode bisa disalin, diganti, dan siswa bisa dikeluarkan.
+3. **Siswa** memasukkan kode itu sekali untuk bergabung. Satu akun bisa ikut beberapa kelas; pindah kelas lewat pemilih kelas di navbar.
+4. Kelas baru benar-benar kosong. Siswa baru bisa spin setelah guru menerbitkan materi.
+
+**Akun contoh** (sudah berisi kelas XI-IPA 2, 5 materi, 18 topik, jawaban, jurnal, dan diskusi):
+
+| Peran | Email | Kata sandi |
+|---|---|---|
+| Guru | `guru@spinsight.test` | `spinsight123` |
+| Siswa | `siswa@spinsight.test` | `spinsight123` |
+
+Kode kelas contoh: `DEMO26`. Akun siswa baru bisa memakainya untuk mencoba kelas yang sudah berisi data.
 
 ## 🏛️ Struktur Direktori
 
@@ -118,10 +138,10 @@ spinsight/
 │   ├── lib/                        # argument.js (pemecah stabilo), labels.js
 │   ├── hooks/useSpeech.js          # Web Speech API + gelombang mikrofon asli
 │   └── index.css                   # Token desain (referensi Miro)
-├── api/                            # Vercel Functions: topics, analyze, status, data
-├── server/                         # llm.js (klien LLM), handlers.js (prompt & validasi), db.js (Supabase), vitePlugin.js
+├── api/                            # Vercel Functions: auth, data, topics, analyze, status
+├── server/                         # llm.js (AI), handlers.js (rute & prompt), auth.js (login), db.js (data per kelas), index.js (server produksi)
 ├── supabase/schema.sql             # Schema database + RLS
-├── scripts/db-reset.js             # Reset data demo (npm run db:reset)
+├── scripts/                        # db-reset.js (reset kelas contoh), test-flow.js (uji alur kelas)
 ├── .env.example
 ├── vercel.json
 ├── index.html
