@@ -37,6 +37,20 @@ export const AuthDialog = ({ initialMode = 'masuk', initialRole = 'siswa', onClo
     }
   };
 
+  const keMasuk = () => {
+    setMode('masuk');
+    setError('');
+  };
+  const keDaftar = () => {
+    setMode('daftar');
+    setError('');
+    // Jangan bawa kredensial akun contoh ke form daftar.
+    if (Object.values(DEMO_ACCOUNTS).some((a) => a.email === email)) {
+      setEmail('');
+      setPassword('');
+    }
+  };
+
   const pakaiContoh = (jenis) => {
     setMode('masuk');
     setEmail(DEMO_ACCOUNTS[jenis].email);
@@ -61,26 +75,6 @@ export const AuthDialog = ({ initialMode = 'masuk', initialRole = 'siswa', onClo
         <p className="muted" style={{ marginTop: '0.25rem' }}>
           {daftar ? 'Gratis. Tidak perlu verifikasi email.' : 'Pakai akun yang sudah kamu daftarkan.'}
         </p>
-
-        <div className="toggle" role="group" aria-label="Pilih masuk atau daftar" style={{ marginTop: '1.25rem', width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-          <button type="button" aria-pressed={!daftar} onClick={() => { setMode('masuk'); setError(''); }} style={{ justifyContent: 'center' }}>Masuk</button>
-          <button
-            type="button"
-            aria-pressed={daftar}
-            onClick={() => {
-              setMode('daftar');
-              setError('');
-              // Jangan bawa kredensial akun contoh ke form daftar.
-              if (Object.values(DEMO_ACCOUNTS).some((a) => a.email === email)) {
-                setEmail('');
-                setPassword('');
-              }
-            }}
-            style={{ justifyContent: 'center' }}
-          >
-            Daftar
-          </button>
-        </div>
 
         <form onSubmit={submit} style={{ display: 'grid', gap: '0.9rem', marginTop: '1.25rem' }}>
           {daftar && (
@@ -126,6 +120,12 @@ export const AuthDialog = ({ initialMode = 'masuk', initialRole = 'siswa', onClo
           {daftar && role === 'guru' && (
             <p className="muted" style={{ fontSize: '0.8125rem', textAlign: 'center' }}>Setelah daftar, buat kelas dan bagikan kodenya ke siswa.</p>
           )}
+          <p style={{ fontSize: '0.9rem', textAlign: 'center', color: 'var(--ink-2)' }}>
+            {daftar ? 'Sudah punya akun? ' : 'Belum punya akun? '}
+            <button type="button" className="text-link" onClick={daftar ? keMasuk : keDaftar}>
+              {daftar ? 'Masuk di sini' : 'Daftar di sini'}
+            </button>
+          </p>
         </form>
 
         <div className="card-inset" style={{ marginTop: '1.25rem', padding: '1rem' }}>
