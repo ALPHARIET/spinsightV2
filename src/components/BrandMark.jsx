@@ -1,0 +1,14 @@
+import React from 'react';
+
+export const BrandMark = ({ className, size = 32 }) => (
+  <svg className={className} width={size} height={size} viewBox="268 239 720 720" aria-hidden="true">
+    <path
+      d="M680 250 L912 372 L690 480 L860 572 C905 596 925 625 925 668 L925 690 C925 740 900 775 860 797 L580 948 L340 828 L556 714 L400 645 C355 622 332 585 332 540 L332 515 C332 460 355 425 400 400 Z"
+      fill="#FCC407" stroke="#FCC407" strokeWidth="10" strokeLinejoin="round"
+    />
+    <path d="M412 580 L628 462 L843 626 L628 730 Z" fill="#FFFFFF" stroke="#FFFFFF" strokeWidth="14" strokeLinejoin="round" />
+    <path d="M445 588 Q628 470 812 612 Q628 720 445 588 Z" fill="#1F1F1F" />
+    <circle cx="628" cy="592" r="100" fill="#FFFFFF" />
+    <circle cx="628" cy="592" r="75" fill="#1F1F1F" />
+  </svg>
+);
