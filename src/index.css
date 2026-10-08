@@ -513,3 +513,10 @@ a { color: inherit; }
 .topic-edit[data-off="true"] { opacity: 0.5; }
 .topic-check { padding-top: 0.7rem; }
 .topic-check input { width: 18px; height: 18px; accent-color: var(--ink); }
+
+/* Pemilih kelas di navbar */
+.class-picker { min-width: 0; }
+.class-picker .select-pill { max-width: 190px; text-overflow: ellipsis; }
+@media (max-width: 640px) {
+  .class-picker .select-pill { max-width: 130px; }
+}

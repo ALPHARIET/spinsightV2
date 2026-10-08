@@ -14,6 +14,9 @@ export const Navbar = () => {
     unlockedCases,
     activeCaseId,
     setTeacherTab,
+    classes,
+    activeClassId,
+    switchClass,
   } = useApp();
 
   if (!isAuthenticated) return null;
@@ -30,6 +33,26 @@ export const Navbar = () => {
   ];
 
   const nama = currentUser?.nama || '';
+  const hasClass = classes.length > 0;
+
+  const onClassChange = (e) => {
+    const v = e.target.value;
+    if (v === '__join') return setActivePage('gabung');
+    if (v === '__manage') return setTeacherTab('kelas');
+    switchClass(v);
+  };
+
+  const classPicker = hasClass && (
+    <label className="class-picker">
+      <span className="sr-only">Kelas aktif</span>
+      <select className="select-pill" value={activeClassId || ''} onChange={onClassChange} title="Ganti kelas">
+        {classes.map((c) => (
+          <option key={c.id} value={c.id}>{c.nama}{c.contoh ? ' (contoh)' : ''}</option>
+        ))}
+        <option value={guru ? '__manage' : '__join'}>{guru ? '+ Buat / kelola kelas' : '+ Gabung kelas lain'}</option>
+      </select>
+    </label>
+  );
 
   return (
     <>
@@ -45,7 +68,7 @@ export const Navbar = () => {
             {guru && <span className="chip hide-sm" style={{ marginLeft: '0.25rem' }}>Portal Guru</span>}
           </button>
 
-          {!guru && (
+          {!guru && hasClass && (
             <nav className="navlinks" aria-label="Menu siswa">
               {items.map(({ id, label, icon: Icon, badge }) => (
                 <button
@@ -62,7 +85,8 @@ export const Navbar = () => {
             </nav>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+            {classPicker}
             <span className="user-chip">
               <span className="avatar" style={{ background: colorFor(nama) }}>{initials(nama)}</span>
               <span className="user-name" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -77,7 +101,7 @@ export const Navbar = () => {
         </div>
       </header>
 
-      {!guru && (
+      {!guru && hasClass && (
         <nav className="tabbar" aria-label="Menu siswa">
           {items.map(({ id, label, short, icon: Icon, badge }) => (
             <button key={id} aria-current={page === id ? 'page' : undefined} onClick={() => setActivePage(id)}>

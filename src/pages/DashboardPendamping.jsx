@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { MateriForge } from '../components/MateriForge';
+import { KelasPanel } from '../components/KelasPanel';
 import {
   Award,
   BookOpen,
@@ -20,7 +21,8 @@ import {
   Check,
   Lock,
   Unlock,
-  MessageSquare
+  MessageSquare,
+  Users
 } from 'lucide-react';
 import { bloomOf, colorFor, formatTanggal, initials, topicOf } from '../lib/labels';
 
@@ -42,7 +44,9 @@ export const DashboardPendamping = () => {
     closedRooms,
     syntheses,
     teacherTab,
-    setTeacherTab
+    setTeacherTab,
+    members,
+    activeClass
   } = useApp();
 
   const activeTab = teacherTab || 'rekap_ai';
@@ -139,7 +143,7 @@ export const DashboardPendamping = () => {
               <span style={{ color: 'var(--muted)', fontWeight: 500 }}>Portal Guru</span>
               <span style={{ color: 'var(--line-strong)', userSelect: 'none' }}>/</span>
               <span style={{ fontWeight: 600, color: 'var(--ink)' }}>
-                Kelas {currentUser?.kelas} ({currentUser?.sekolah})
+                Kelas {currentUser?.kelas}{currentUser?.sekolah ? ` (${currentUser.sekolah})` : ''}{activeClass?.contoh ? ' · kelas contoh' : ''}
               </span>
               <span style={{ color: 'var(--line-strong)' }}>•</span>
               <span style={{
@@ -172,7 +176,7 @@ export const DashboardPendamping = () => {
             <div>
               <div className="mono-tag" style={{ fontSize: '0.68rem', color: 'var(--muted)' }}>PENDAMPING KELAS</div>
               <div style={{ fontWeight: 600, color: 'var(--ink)', fontSize: '0.92rem' }}>
-                {currentUser?.nama || 'Dra. Sri Wahyuni, M.Pd.'}
+                {currentUser?.nama}
               </div>
             </div>
             <div style={{ height: '24px', width: '1px', background: 'var(--line)' }} />
@@ -245,7 +249,7 @@ export const DashboardPendamping = () => {
               <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>({tuntasCount} dari {totalEvaluations} jawaban)</span>
             </div>
             <p style={{ fontSize: '0.78rem', color: 'var(--muted)', margin: 0 }}>
-              {totalEvaluations - tuntasCount > 0 ? `${totalEvaluations - tuntasCount} jawaban perlu penguatan` : 'Semua jawaban sudah tuntas KKM'}
+              {!totalEvaluations ? 'Belum ada jawaban siswa' : totalEvaluations - tuntasCount > 0 ? `${totalEvaluations - tuntasCount} jawaban perlu penguatan` : 'Semua jawaban sudah tuntas KKM'}
             </p>
           </div>
 
@@ -351,12 +355,19 @@ export const DashboardPendamping = () => {
                   borderRadius: '6px',
                   border: '1px solid var(--line)'
                 }}>
-                  4 Modul
+                  5 Modul
                 </span>
               </div>
 
               <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                 {[
+                  {
+                    id: 'kelas',
+                    label: 'Kelas & Kode',
+                    desc: 'Undang siswa ke kelas',
+                    icon: <Users size={18} />,
+                    badge: members?.length
+                  },
                   {
                     id: 'rekap_ai',
                     label: 'Rekapitulasi AI',
@@ -809,6 +820,8 @@ export const DashboardPendamping = () => {
             </div>
           </div>
         )}
+
+        {activeTab === 'kelas' && <KelasPanel />}
 
         {activeTab === 'materi' && <MateriForge />}
 
