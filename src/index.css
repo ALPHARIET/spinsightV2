@@ -186,12 +186,13 @@ a { color: inherit; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); } }
-.dashboard-grid-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.dashboard-grid-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 1.5rem; align-items: start; scroll-margin-top: calc(var(--nav-h) + 1rem); }
 .dashboard-side { display: flex; flex-direction: column; gap: 1rem; align-self: start; position: sticky; top: calc(var(--nav-h) + 1.5rem); }
 @media (max-width: 992px) {
   .dashboard-grid-layout { grid-template-columns: minmax(0, 1fr); }
   .dashboard-side { position: static; }
 }
+@media (max-width: 860px) { .dashboard-side { display: none; } }
 
 .segmented { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .segmented button {
@@ -252,6 +253,7 @@ a { color: inherit; }
     -webkit-backdrop-filter: saturate(180%) blur(12px);
     border-top: 1px solid var(--hairline);
   }
+  .tabbar-guru { grid-template-columns: repeat(5, 1fr); }
   .tabbar button {
     position: relative; border: none; background: none; cursor: pointer;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;

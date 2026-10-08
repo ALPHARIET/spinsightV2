@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { MateriForge } from '../components/MateriForge';
 import { KelasPanel } from '../components/KelasPanel';
@@ -67,6 +67,7 @@ export const DashboardPendamping = () => {
   const [filterScoreRange, setFilterScoreRange] = useState('Semua');
 
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
+  const contentRef = useRef(null);
 
   const handleStartEdit = (c) => {
     setEditingCaseId(c.id);
@@ -102,6 +103,48 @@ export const DashboardPendamping = () => {
   const tuntasCount = (evaluationRecords || []).filter(r => (r.skor || 0) >= 75).length;
   const tuntasPct = totalEvaluations ? Math.round((tuntasCount / totalEvaluations) * 100) : 0;
   const activeCasesCount = cases.filter(c => c.aktif).length;
+
+  const modules = [
+    {
+      id: 'kelas',
+      label: 'Kelas & Kode',
+      short: 'Kelas',
+      desc: 'Undang siswa ke kelas',
+      icon: Users,
+      badge: members?.length
+    },
+    {
+      id: 'rekap_ai',
+      label: 'Rekapitulasi AI',
+      short: 'Rekap',
+      desc: 'Evaluasi nalar lisan siswa',
+      icon: Award,
+      badge: evaluationRecords?.length
+    },
+    {
+      id: 'materi',
+      label: 'Materi Guru',
+      short: 'Materi',
+      desc: 'Materi jadi topik (AI)',
+      icon: BookOpen,
+      badge: materials?.length
+    },
+    {
+      id: 'bank_kasus',
+      label: 'Bank Topik',
+      short: 'Topik',
+      desc: 'Topik di spin siswa',
+      icon: CheckSquare,
+      badge: cases?.length
+    },
+    {
+      id: 'moderasi',
+      label: 'Moderasi Diskusi',
+      short: 'Diskusi',
+      desc: 'Forum & sintesis kelas',
+      icon: MessageSquare
+    }
+  ];
 
   const saveNewCase = () => {
     if (!newCaseFields.judulKasus.trim() || !newCaseFields.teksKasus.trim()) {
@@ -312,7 +355,7 @@ export const DashboardPendamping = () => {
           </div>
         </div>
 
-        <div className="dashboard-grid-layout" style={{ marginBottom: '2.5rem' }}>
+        <div ref={contentRef} className="dashboard-grid-layout" style={{ marginBottom: '2.5rem' }}>
 
           <aside className="dashboard-side">
             <div className="glass-panel" style={{
@@ -353,42 +396,7 @@ export const DashboardPendamping = () => {
               </div>
 
               <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                {[
-                  {
-                    id: 'kelas',
-                    label: 'Kelas & Kode',
-                    desc: 'Undang siswa ke kelas',
-                    icon: <Users size={18} />,
-                    badge: members?.length
-                  },
-                  {
-                    id: 'rekap_ai',
-                    label: 'Rekapitulasi AI',
-                    desc: 'Evaluasi nalar lisan siswa',
-                    icon: <Award size={18} />,
-                    badge: evaluationRecords?.length
-                  },
-                  {
-                    id: 'materi',
-                    label: 'Materi Guru',
-                    desc: 'Materi jadi topik (AI)',
-                    icon: <BookOpen size={18} />,
-                    badge: materials?.length
-                  },
-                  {
-                    id: 'bank_kasus',
-                    label: 'Bank Topik',
-                    desc: 'Topik di spin siswa',
-                    icon: <CheckSquare size={18} />,
-                    badge: cases?.length
-                  },
-                  {
-                    id: 'moderasi',
-                    label: 'Moderasi Diskusi',
-                    desc: 'Forum & sintesis kelas',
-                    icon: <MessageSquare size={18} />
-                  }
-                ].map((item) => {
+                {modules.map((item) => {
                   const isActive = activeTab === item.id;
                   return (
                     <button
@@ -433,7 +441,7 @@ export const DashboardPendamping = () => {
                         background: isActive ? 'rgba(255, 255, 255, 0.16)' : 'var(--subtle)',
                         color: isActive ? 'var(--surface)' : 'var(--muted)'
                       }}>
-                        {item.icon}
+                        <item.icon size={18} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.35rem' }}>
@@ -1125,6 +1133,24 @@ export const DashboardPendamping = () => {
         )}
           </main>
         </div>
+
+        <nav className="tabbar tabbar-guru" aria-label="Modul guru">
+          {modules.map(({ id, short, icon: Icon }) => (
+            <button
+              key={id}
+              aria-current={activeTab === id ? 'page' : undefined}
+              onClick={() => {
+                setActiveTab(id);
+                contentRef.current?.scrollIntoView();
+              }}
+            >
+              <span className="tab-ico">
+                <Icon size={19} strokeWidth={2.2} />
+              </span>
+              {short}
+            </button>
+          ))}
+        </nav>
 
         {selectedEvaluation && (
           <div style={{
