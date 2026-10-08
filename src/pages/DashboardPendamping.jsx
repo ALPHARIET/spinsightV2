@@ -314,14 +314,7 @@ export const DashboardPendamping = () => {
 
         <div className="dashboard-grid-layout" style={{ marginBottom: '2.5rem' }}>
 
-          <aside style={{
-            position: 'sticky',
-            top: '5.2rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-            alignSelf: 'start'
-          }}>
+          <aside className="dashboard-side">
             <div className="glass-panel" style={{
               padding: '1.15rem',
               borderRadius: '16px',

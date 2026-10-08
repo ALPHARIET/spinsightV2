@@ -34,3 +34,6 @@ generate_proposal*.py
 .env.*
 !.env.example
 .vercel
+
+# Video demo & aset pembuatnya
+video/

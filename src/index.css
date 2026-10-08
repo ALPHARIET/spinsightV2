@@ -187,7 +187,11 @@ a { color: inherit; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); } }
 .dashboard-grid-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 1.5rem; align-items: start; }
-@media (max-width: 992px) { .dashboard-grid-layout { grid-template-columns: minmax(0, 1fr); } }
+.dashboard-side { display: flex; flex-direction: column; gap: 1rem; align-self: start; position: sticky; top: calc(var(--nav-h) + 1.5rem); }
+@media (max-width: 992px) {
+  .dashboard-grid-layout { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-side { position: static; }
+}
 
 .segmented { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .segmented button {
