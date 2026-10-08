@@ -70,7 +70,7 @@ export const LandingPage = () => {
           </motion.div>
 
           <motion.div {...rise(0.15)} style={{ marginTop: 'clamp(2.5rem, 6vw, 4.5rem)', position: 'relative' }}>
-            <Shot src="/shots/latihan.webp" alt="Halaman Latihan SpinSight: spin topik dari materi guru" />
+            <Shot src="/shots/latihan-v2.webp" alt="Halaman Latihan SpinSight terbaru: pilih bab materi guru dan spin satu topik" />
           </motion.div>
         </section>
 
