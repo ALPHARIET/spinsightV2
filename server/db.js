@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { cleanKey } from './llm.js';
 import {
   INITIAL_USERS,
   INITIAL_MATERIALS,
@@ -22,8 +23,8 @@ export class DBError extends Error {
 
 export function dbConfig(env = process.env) {
   return {
-    url: env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || env.VITE_SUPABASE_URL || '',
-    key: env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || '',
+    url: cleanKey(env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || env.VITE_SUPABASE_URL).replace(/\/+$/, ''),
+    key: cleanKey(env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY),
   };
 }
 

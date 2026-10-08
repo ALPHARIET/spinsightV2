@@ -7,7 +7,8 @@ create table if not exists users (
   nama text not null,
   role text not null check (role in ('siswa', 'pendamping')),
   kelas text,
-  sekolah text
+  sekolah text,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists materials (

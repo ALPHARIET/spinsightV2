@@ -7,6 +7,9 @@ const DEFAULTS = {
   timeoutMs: 90000,
 };
 
+// Buang spasi dan tanda kutip yang sering ikut ter-copy saat key ditempel ke dashboard hosting.
+export const cleanKey = (v) => String(v || '').trim().replace(/^['"]+|['"]+$/g, '').trim();
+
 const list = (s) => String(s || '').split(',').map((m) => m.trim()).filter(Boolean);
 
 export function llmConfig(env = process.env) {
@@ -15,7 +18,7 @@ export function llmConfig(env = process.env) {
   const model = env.LLM_MODEL || DEFAULTS.model;
   const fallbacks = list(env.LLM_FALLBACK_MODELS ?? (gemini ? DEFAULTS.geminiFallbacks : '')).filter((m) => m !== model);
   return {
-    apiKey: env.LLM_API_KEY || env.GEMINI_API_KEY || '',
+    apiKey: cleanKey(env.LLM_API_KEY || env.GEMINI_API_KEY),
     baseUrl,
     gemini,
     model,
@@ -52,7 +55,9 @@ const busy = (status) => status === 500 || status === 503;
 const canFallback = (status) => status === 429 || status === 404 || busy(status);
 
 function errorFor(status, detail, model) {
-  if (status === 401 || status === 403) return new LLMError('API key ditolak oleh penyedia AI.', 502);
+  if (status === 401 || status === 403 || (status === 400 && /api key/i.test(detail))) {
+    return new LLMError('API key ditolak oleh penyedia AI. Cek LLM_API_KEY di server.', 502);
+  }
   if (status === 429 && /PerDay/i.test(detail)) {
     return new LLMError('Kuota harian gratis AI sudah habis. Coba lagi besok, atau pakai API key berbayar.', 429);
   }
