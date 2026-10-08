@@ -1,4 +1,5 @@
 import { chatJSON, LLMError, llmConfig } from './llm.js';
+import { dbConfig, handleData } from './db.js';
 
 const clamp = (n, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, Math.round(Number(n) || 0)));
 const FOREIGN_SCRIPT = /[\p{Script_Extensions=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Cyrillic}]+/gu;
@@ -192,28 +193,34 @@ export async function analyzeAnswer(input, env) {
 }
 
 const hits = new Map();
-function rateLimited(ip, limit = 30, windowMs = 60000) {
+function rateLimited(key, limit = 30, windowMs = 60000) {
   const now = Date.now();
-  const list = (hits.get(ip) || []).filter((t) => now - t < windowMs);
+  const list = (hits.get(key) || []).filter((t) => now - t < windowMs);
   list.push(now);
-  hits.set(ip, list);
+  hits.set(key, list);
+  if (hits.size > 5000) hits.clear();
   return list.length > limit;
 }
 
 export async function handleApi(route, { method, body, ip }, env = process.env) {
   if (route === 'status') {
     const cfg = llmConfig(env);
-    return { status: 200, json: { aiAktif: Boolean(cfg.apiKey), model: cfg.model } };
+    const db = dbConfig(env);
+    return { status: 200, json: { aiAktif: Boolean(cfg.apiKey), model: cfg.model, dbAktif: Boolean(db.url && db.key) } };
   }
   if (method !== 'POST') return { status: 405, json: { error: 'Gunakan POST.' } };
-  if (rateLimited(ip || 'local')) return { status: 429, json: { error: 'Terlalu banyak permintaan. Tunggu sebentar.' } };
+  const data = route === 'data';
+  if (rateLimited(`${data ? 'data' : 'ai'}:${ip || 'local'}`, data ? 240 : 30)) {
+    return { status: 429, json: { error: 'Terlalu banyak permintaan. Tunggu sebentar.' } };
+  }
   try {
     if (route === 'topics') return { status: 200, json: await generateTopics(body, env) };
     if (route === 'analyze') return { status: 200, json: await analyzeAnswer(body, env) };
+    if (data) return { status: 200, json: await handleData(body, env) };
     return { status: 404, json: { error: 'Endpoint tidak ditemukan.' } };
   } catch (e) {
-    const status = e instanceof LLMError ? e.status : 500;
-    if (!(e instanceof LLMError)) console.error('[api]', e);
+    const status = Number.isInteger(e.status) ? e.status : 500;
+    if (!Number.isInteger(e.status)) console.error('[api]', e);
     return { status, json: { error: e.message || 'Terjadi kesalahan.' } };
   }
 }

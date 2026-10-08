@@ -63,6 +63,31 @@ npm run dev               # http://localhost:3000
 2. Di **Settings → Environment Variables**, isi `LLM_API_KEY`, `LLM_BASE_URL`, dan `LLM_MODEL`.
 3. Deploy. Folder `api/` otomatis menjadi serverless function, dan `vercel.json` mengarahkan rute SPA ke `index.html`.
 
+### Deploy ke Render
+Render menjalankan `server/index.js` (server Node yang menyajikan `dist/` dan `/api/*`).
+- Build command: `npm install && npm run build`
+- Start command: `npm start`
+- Environment: `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+
+Layanan gratis Render tidur setelah sekitar 15 menit tanpa pengunjung, dan permintaan pertama sesudahnya butuh waktu untuk bangun. Buka web beberapa menit sebelum demo.
+
+### Database (Supabase, opsional)
+Tanpa Supabase, data tersimpan di `localStorage` peramban (satu perangkat). Dengan Supabase, data guru dan siswa tersimpan bersama dan bisa dibuka dari perangkat mana pun.
+
+1. Buat project di [supabase.com](https://supabase.com).
+2. Buka **SQL Editor → New query**, tempel isi `supabase/schema.sql`, lalu **Run**.
+3. Dari **Project Settings → API**, salin Project URL dan `service_role` key ke `.env`:
+   ```
+   SUPABASE_URL=https://xxxxxxxx.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=...
+   ```
+   Isi juga keduanya di Vercel (**Settings → Environment Variables**), atau pasang integrasi Supabase dari Vercel Marketplace.
+4. Jalankan ulang `npm run dev`. Data demo diisi otomatis saat database masih kosong. Untuk mengembalikan data demo: `npm run db:reset`.
+
+Browser tidak pernah memegang key Supabase. Semua akses lewat `/api/data` di server, dan semua tabel memakai RLS tanpa policy, sehingga anon key tidak bisa membaca atau menulis apa pun. Server juga memeriksa peran: hanya akun guru yang bisa mengubah materi, topik, dan ruang diskusi.
+
+Catatan: project Supabase gratis dijeda otomatis bila lama tidak dipakai. Buka dashboard Supabase beberapa hari sebelum penilaian.
+
 ## 🏛️ Struktur Direktori
 
 ```
@@ -93,8 +118,10 @@ spinsight/
 │   ├── lib/                        # argument.js (pemecah stabilo), labels.js
 │   ├── hooks/useSpeech.js          # Web Speech API + gelombang mikrofon asli
 │   └── index.css                   # Token desain (referensi Miro)
-├── api/                            # Vercel Functions: topics, analyze, status
-├── server/                         # llm.js (klien LLM), handlers.js (prompt & validasi), vitePlugin.js
+├── api/                            # Vercel Functions: topics, analyze, status, data
+├── server/                         # llm.js (klien LLM), handlers.js (prompt & validasi), db.js (Supabase), vitePlugin.js
+├── supabase/schema.sql             # Schema database + RLS
+├── scripts/db-reset.js             # Reset data demo (npm run db:reset)
 ├── .env.example
 ├── vercel.json
 ├── index.html

@@ -6,11 +6,11 @@ import { BrandMark } from '../components/BrandMark';
 import { StabiloLegend, StabiloText } from '../components/Stabilo';
 import { SlotReel } from '../components/SlotReel';
 import { TimerRing } from '../components/TimerRing';
+import { DEMO_STUDENTS as STUDENTS, GURU_NAMA } from '../data/seedData';
 
 const CONTOH =
   'Menurut saya, larangan plastik di kantin sebaiknya bertahap. Karena kalau langsung dilarang, pedagang kantin yang paling dirugikan. Misalnya, sekolah bisa menyediakan wadah pinjam dulu, baru setelah itu plastik sekali pakai dilarang.';
 
-const STUDENTS = ['Jason Pratama', 'Nabila Putri', 'Budi Prakoso', 'Aisyah Maharani', 'Farhan Maulana', 'Zahra Amelia'];
 
 const Shot = ({ src, alt, style }) => (
   <img src={src} alt={alt} loading="lazy" className="mockup" style={{ width: '100%', height: 'auto', ...style }} />
@@ -26,7 +26,7 @@ export const LandingPage = () => {
   const [nama, setNama] = useState(STUDENTS[0]);
 
   const cobaSiswa = () => login('siswa', 'Jason Pratama');
-  const masukGuru = () => login('pendamping', 'Dra. Sri Wahyuni, M.Pd.');
+  const masukGuru = () => login('pendamping', GURU_NAMA);
 
   const rise = (d = 0) =>
     reduce

@@ -4,7 +4,7 @@ import { handleApi } from './handlers.js';
 export function spinsightApi() {
   let env = {};
   const middleware = async (req, res, next) => {
-    const m = req.url && req.url.match(/^\/api\/(topics|analyze|status)(?:\?.*)?$/);
+    const m = req.url && req.url.match(/^\/api\/(topics|analyze|status|data)(?:\?.*)?$/);
     if (!m) return next();
     let raw = '';
     for await (const chunk of req) raw += chunk;

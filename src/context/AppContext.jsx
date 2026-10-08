@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   INITIAL_MATERIALS,
   INITIAL_CASES,
@@ -6,19 +6,23 @@ import {
   INITIAL_SYNTHESIS,
   INITIAL_STUDENT_JOURNAL,
   INITIAL_EVALUATION_RECORDS,
-  INITIAL_FORUM_POSTS
+  INITIAL_FORUM_POSTS,
+  KELAS,
+  SEKOLAH,
+  GURU_ID,
+  GURU_NAMA,
+  studentId,
 } from '../data/seedData';
 import { aiService } from '../services/aiService';
 import { analyzeAnswer } from '../services/aiClient';
+import { dataApi } from '../services/dataClient';
 import { stamp } from '../lib/labels';
 
 const AppContext = createContext();
 
-const DATA_VERSION = '5';
-const DATA_KEYS = ['spin_session', 'active_case', 'materials', 'cases', 'unlocked_cases', 'evaluations', 'forum_posts', 'arena_posts', 'synthesis', 'closed_rooms', 'journals'];
+const DATA_VERSION = '6';
+const DATA_KEYS = ['spin_session', 'spin_sessions', 'active_case', 'materials', 'cases', 'unlocked_cases', 'evaluations', 'forum_posts', 'arena_posts', 'synthesis', 'closed_rooms', 'journals'];
 const PAGES = ['landing', 'spin', 'forum', 'arena', 'pendamping', 'jurnal'];
-const KELAS = 'XI-IPA 2';
-const SEKOLAH = 'SMA Cerdas Mandiri';
 
 try {
   if (localStorage.getItem('spinsight_data_version') !== DATA_VERSION) {
@@ -51,9 +55,9 @@ const pageFromPath = () => {
 
 const makeUser = (role, nama) => {
   const guru = role === 'pendamping' || role === 'guru';
-  const name = nama || (guru ? 'Dra. Sri Wahyuni, M.Pd.' : 'Jason Pratama');
+  const name = nama || (guru ? GURU_NAMA : 'Jason Pratama');
   return {
-    id: guru ? 'usr-guru' : 'usr-' + name.toLowerCase().replace(/[^a-z]+/g, '-'),
+    id: guru ? GURU_ID : studentId(name),
     nama: name,
     role: guru ? 'pendamping' : 'siswa',
     kelas: KELAS,
@@ -67,16 +71,98 @@ export const AppProvider = ({ children }) => {
   const [materials, setMaterials] = usePersisted('materials', INITIAL_MATERIALS);
   const [cases, setCases] = usePersisted('cases', INITIAL_CASES);
   const [activeCaseId, setActiveCaseId] = usePersisted('active_case', INITIAL_CASES[0].id);
-  const [unlockedCases, setUnlockedCases] = usePersisted('unlocked_cases', ['case-1']);
   const [evaluationRecords, setEvaluationRecords] = usePersisted('evaluations', INITIAL_EVALUATION_RECORDS);
   const [forumPosts, setForumPosts] = usePersisted('forum_posts', INITIAL_FORUM_POSTS);
   const [arenaPosts, setArenaPosts] = usePersisted('arena_posts', INITIAL_ARENA_POSTS);
   const [syntheses, setSyntheses] = usePersisted('synthesis', { 'case-1': INITIAL_SYNTHESIS });
   const [closedRooms, setClosedRooms] = usePersisted('closed_rooms', {});
   const [journals, setJournals] = usePersisted('journals', INITIAL_STUDENT_JOURNAL);
-  const [spinSession, setSpinSession] = usePersisted('spin_session', null);
+  const [spinSessions, setSpinSessions] = usePersisted('spin_sessions', {});
   const [activePage, setActivePageState] = useState(pageFromPath);
   const [teacherTab, setTeacherTab] = useState('rekap_ai');
+
+  // Mode data: 'loading' saat cek database, 'on' = Supabase, 'off' = localStorage di peramban ini saja.
+  const [dataMode, setDataMode] = useState('loading');
+  const [dataError, setDataError] = useState('');
+  const dbOn = useRef(false);
+  const pending = useRef(0);
+  const userRef = useRef(currentUser);
+  userRef.current = currentUser;
+
+  const sync = (action, payload = {}) => {
+    if (!dbOn.current) return Promise.resolve(null);
+    pending.current += 1;
+    return dataApi(action, { actor: userRef.current?.id, ...payload })
+      .catch((e) => {
+        setDataError(`Perubahan belum tersimpan ke database: ${e.message}`);
+        return null;
+      })
+      .finally(() => {
+        pending.current -= 1;
+      });
+  };
+
+  const loadData = useCallback(async () => {
+    if (pending.current > 0) return;
+    try {
+      const d = await dataApi('bootstrap');
+      if (d.enabled === false) {
+        setDataMode('off');
+        return;
+      }
+      dbOn.current = true;
+      setMaterials(d.materials);
+      setCases(d.cases);
+      setEvaluationRecords(d.evaluationRecords);
+      setJournals(d.journals);
+      setArenaPosts(d.arenaPosts);
+      setForumPosts(d.forumPosts);
+      setSyntheses(d.syntheses);
+      setClosedRooms(d.closedRooms);
+      setSpinSessions(d.spinSessions);
+      setDataMode('on');
+      setDataError('');
+    } catch (e) {
+      if (dbOn.current) {
+        setDataError(`Gagal memuat data terbaru: ${e.message}`);
+        return;
+      }
+      setDataMode('off');
+      setDataError(`Database tidak tersedia, data hanya tersimpan di peramban ini. ${e.message}`);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+    const onFocus = () => {
+      if (dbOn.current && document.visibilityState === 'visible') loadData();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, [loadData]);
+
+  const spinSession = spinSessions[currentUser?.id] || null;
+  const setMySpin = (next) =>
+    setSpinSessions((prev) => {
+      const id = userRef.current?.id;
+      const value = typeof next === 'function' ? next(prev[id] || null) : next;
+      const copy = { ...prev };
+      if (value) copy[id] = value;
+      else delete copy[id];
+      return copy;
+    });
+  const dropSpinsWhere = (match) =>
+    setSpinSessions((prev) => Object.fromEntries(Object.entries(prev).filter(([, s]) => !match(s))));
+
+  // Arena terbuka per siswa: hanya topik yang sudah pernah dia jawab sendiri.
+  const unlockedCases = useMemo(
+    () => [...new Set(evaluationRecords.filter((r) => r.siswaId === currentUser?.id).map((r) => r.caseId))],
+    [evaluationRecords, currentUser]
+  );
 
   const setActivePage = (page) => {
     setActivePageState(page);
@@ -92,9 +178,11 @@ export const AppProvider = ({ children }) => {
 
   const login = (role = 'siswa', nama = null) => {
     const user = makeUser(role, nama);
+    userRef.current = user;
     setCurrentUser(user);
     setIsAuthenticated(true);
     setActivePage(user.role === 'pendamping' ? 'pendamping' : 'spin');
+    if (dbOn.current) loadData();
   };
 
   const logout = () => {
@@ -104,10 +192,23 @@ export const AppProvider = ({ children }) => {
 
   const lockSpin = (materialId, caseId) => {
     setActiveCaseId(caseId);
-    setSpinSession({ userId: currentUser?.id, materialId, caseId, spunAt: Date.now(), startedAt: null });
+    const session = { userId: currentUser?.id, materialId, caseId, spunAt: Date.now(), startedAt: null };
+    setMySpin(session);
+    sync('lockSpin', { session }).then((r) => {
+      if (r?.conflict) {
+        setMySpin(r.session);
+        setActiveCaseId(r.session.caseId);
+      }
+    });
   };
-  const beginAnswer = () => setSpinSession((s) => (s && !s.startedAt ? { ...s, startedAt: Date.now() } : s));
-  const clearSpin = () => setSpinSession(null);
+  const beginAnswer = () => {
+    setMySpin((s) => (s && !s.startedAt ? { ...s, startedAt: Date.now() } : s));
+    sync('beginAnswer');
+  };
+  const clearSpin = () => {
+    setMySpin(null);
+    sync('clearSpin');
+  };
 
   const publishMaterial = ({ judul, mapel, fileName, fileSize, ai, topikTerpilih }) => {
     const id = 'mat-' + Date.now();
@@ -138,13 +239,15 @@ export const AppProvider = ({ children }) => {
     }));
     setMaterials((prev) => [material, ...prev]);
     setCases((prev) => [...newCases, ...prev]);
+    sync('publishMaterial', { material, cases: newCases });
     return { material, cases: newCases };
   };
 
   const deleteMaterial = (id) => {
     setMaterials((prev) => prev.filter((m) => m.id !== id));
     setCases((prev) => prev.filter((c) => c.materialId !== id));
-    setSpinSession((s) => (s?.materialId === id ? null : s));
+    dropSpinsWhere((s) => s?.materialId === id);
+    sync('deleteMaterial', { id });
   };
 
   const addCase = (fields) => {
@@ -158,20 +261,26 @@ export const AppProvider = ({ children }) => {
       ...fields,
     };
     setCases((prev) => [kasus, ...prev]);
+    sync('addCase', { kasus });
     return kasus;
   };
 
   const toggleCaseActive = (id) => {
+    const target = cases.find((c) => c.id === id);
+    if (!target) return;
     setCases((prev) => prev.map((c) => (c.id === id ? { ...c, aktif: !c.aktif } : c)));
+    sync('updateCase', { id, fields: { aktif: !target.aktif } });
   };
 
   const deleteCase = (id) => {
     setCases((prev) => prev.filter((c) => c.id !== id));
-    setSpinSession((s) => (s?.caseId === id ? null : s));
+    dropSpinsWhere((s) => s?.caseId === id);
+    sync('deleteCase', { id });
   };
 
   const updateCase = (id, fields) => {
     setCases((prev) => prev.map((c) => (c.id === id ? { ...c, ...fields } : c)));
+    sync('updateCase', { id, fields });
   };
 
   const author = () => ({
@@ -195,6 +304,7 @@ export const AppProvider = ({ children }) => {
       comments: [],
     };
     setForumPosts((prev) => [post, ...prev]);
+    sync('addForumPost', { post });
     return post;
   };
 
@@ -202,6 +312,7 @@ export const AppProvider = ({ children }) => {
     if (!isi?.trim()) return null;
     const comment = { id: 'fpc-' + Date.now(), isi: isi.trim(), ...author() };
     setForumPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: [...(p.comments || []), comment] } : p)));
+    sync('addComment', { postId, comment });
     return comment;
   };
 
@@ -214,6 +325,7 @@ export const AppProvider = ({ children }) => {
         return { ...p, likedBy: likedBy.includes(me) ? likedBy.filter((id) => id !== me) : [...likedBy, me] };
       })
     );
+    sync('toggleLike', { postId });
   };
 
   const submitAnswer = async ({ caseId, jawaban, durasiDetik, lewatSuara }) => {
@@ -250,66 +362,59 @@ export const AppProvider = ({ children }) => {
       kemandirianNalar: ai.skor.total,
     };
 
-    setEvaluationRecords((prev) => [
-      {
-        id: 'eval-' + Date.now(),
-        siswaId: currentUser.id,
-        siswaNama: currentUser.nama,
-        kelas: currentUser.kelas || KELAS,
-        caseId: targetCase.id,
-        topikKasus: targetCase.judulKasus,
-        levelBloom: targetCase.levelBloom,
-        materiJudul: material ? material.judul : 'Materi',
-        jawabanTeks: jawaban,
-        skor: ai.skor.total,
-        dimensi,
-        feedback: [ai.kekuatan, ...(ai.saran || [])].filter(Boolean).join(' '),
-        pertanyaanLanjutan: ai.pertanyaanLanjutan || '',
-        durasiPengerjaan: menit,
-        lewatSuara,
-        tanggal,
-        sumberAnalisis: ai.sumber,
-      },
-      ...prev,
-    ]);
+    const evaluation = {
+      id: 'eval-' + Date.now(),
+      siswaId: currentUser.id,
+      siswaNama: currentUser.nama,
+      kelas: currentUser.kelas || KELAS,
+      caseId: targetCase.id,
+      topikKasus: targetCase.judulKasus,
+      levelBloom: targetCase.levelBloom,
+      materiJudul: material ? material.judul : 'Materi',
+      jawabanTeks: jawaban,
+      skor: ai.skor.total,
+      dimensi,
+      feedback: [ai.kekuatan, ...(ai.saran || [])].filter(Boolean).join(' '),
+      pertanyaanLanjutan: ai.pertanyaanLanjutan || '',
+      durasiPengerjaan: menit,
+      lewatSuara,
+      tanggal,
+      sumberAnalisis: ai.sumber,
+    };
+    const journal = {
+      id: 'jrn-' + Date.now(),
+      siswaId: currentUser.id,
+      tanggal,
+      caseJudul: targetCase.judulKasus,
+      levelBloom: targetCase.levelBloom,
+      durasiBicara: menit,
+      skorArgumen: ai.skor.total,
+      transkrip: jawaban,
+      kutipan: ai.kutipan,
+      cermin,
+      dimensi,
+    };
+    const arenaPost = {
+      id: 'post-' + Date.now(),
+      caseId: targetCase.id,
+      siswaId: currentUser.id,
+      siswaNama: currentUser.nama,
+      kutub: ai.ringkasan?.klaim ? ai.ringkasan.klaim.slice(0, 40) : 'Pendapat baru',
+      posisiX: Math.floor(Math.random() * 40) + 30,
+      posisiY: Math.floor(Math.random() * 50) + 25,
+      transkrip: jawaban,
+      kutipan: ai.kutipan,
+      skorArgumen: ai.skor.total,
+      lewatSuara,
+      cermin,
+      waktu: 'Baru saja',
+      replies: [],
+    };
 
-    setJournals((prev) => [
-      {
-        id: 'jrn-' + Date.now(),
-        siswaId: currentUser.id,
-        tanggal,
-        caseJudul: targetCase.judulKasus,
-        levelBloom: targetCase.levelBloom,
-        durasiBicara: menit,
-        skorArgumen: ai.skor.total,
-        transkrip: jawaban,
-        kutipan: ai.kutipan,
-        cermin,
-        dimensi,
-      },
-      ...prev,
-    ]);
-
-    setArenaPosts((prev) => [
-      {
-        id: 'post-' + Date.now(),
-        caseId: targetCase.id,
-        siswaNama: currentUser.nama,
-        kutub: ai.ringkasan?.klaim ? ai.ringkasan.klaim.slice(0, 40) : 'Pendapat baru',
-        posisiX: Math.floor(Math.random() * 40) + 30,
-        posisiY: Math.floor(Math.random() * 50) + 25,
-        transkrip: jawaban,
-        kutipan: ai.kutipan,
-        skorArgumen: ai.skor.total,
-        lewatSuara,
-        cermin,
-        waktu: 'Baru saja',
-        replies: [],
-      },
-      ...prev,
-    ]);
-
-    setUnlockedCases((prev) => (prev.includes(targetCase.id) ? prev : [...prev, targetCase.id]));
+    setEvaluationRecords((prev) => [evaluation, ...prev]);
+    setJournals((prev) => [journal, ...prev]);
+    setArenaPosts((prev) => [arenaPost, ...prev]);
+    sync('saveAnswer', { evaluation, journal, arenaPost });
 
     return {
       caseId: targetCase.id,
@@ -326,19 +431,23 @@ export const AppProvider = ({ children }) => {
   };
 
   const addArenaReply = (postId, { label, isi }) => {
-    const reply = { id: 'rep-' + Date.now(), siswaNama: currentUser.nama, label, isi, waktu: 'Baru saja' };
+    const reply = { id: 'rep-' + Date.now(), siswaId: currentUser.id, siswaNama: currentUser.nama, label, isi, waktu: 'Baru saja' };
     setArenaPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, replies: [...p.replies, reply] } : p)));
+    sync('addArenaReply', { postId, reply });
   };
 
   const closeDiscussionRoom = (caseId) => {
     const kasus = cases.find((c) => c.id === caseId);
     const posts = arenaPosts.filter((p) => p.caseId === caseId);
-    setSyntheses((prev) => ({ ...prev, [caseId]: aiService.generateClassSynthesis(posts, kasus) }));
+    const sintesis = aiService.generateClassSynthesis(posts, kasus);
+    setSyntheses((prev) => ({ ...prev, [caseId]: sintesis }));
     setClosedRooms((prev) => ({ ...prev, [caseId]: true }));
+    sync('setRoom', { caseId, closed: true, sintesis });
   };
 
   const reopenDiscussionRoom = (caseId) => {
     setClosedRooms((prev) => ({ ...prev, [caseId]: false }));
+    sync('setRoom', { caseId, closed: false });
   };
 
   return (
@@ -377,7 +486,11 @@ export const AppProvider = ({ children }) => {
       clearSpin,
       addArenaReply,
       closeDiscussionRoom,
-      reopenDiscussionRoom
+      reopenDiscussionRoom,
+      dataMode,
+      dataError,
+      setDataError,
+      reloadData: loadData,
     }}>
       {children}
     </AppContext.Provider>

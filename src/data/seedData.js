@@ -1,3 +1,16 @@
+export const KELAS = 'XI-IPA 2';
+export const SEKOLAH = 'SMA Cerdas Mandiri';
+export const GURU_ID = 'usr-guru';
+export const GURU_NAMA = 'Dra. Sri Wahyuni, M.Pd.';
+export const DEMO_STUDENTS = ['Jason Pratama', 'Nabila Putri', 'Budi Prakoso', 'Aisyah Maharani', 'Farhan Maulana', 'Zahra Amelia'];
+
+export const studentId = (nama) => 'usr-' + nama.toLowerCase().replace(/[^a-z]+/g, '-');
+
+export const INITIAL_USERS = [
+  { id: GURU_ID, nama: GURU_NAMA, role: 'pendamping', kelas: KELAS, sekolah: SEKOLAH },
+  ...DEMO_STUDENTS.map((nama) => ({ id: studentId(nama), nama, role: 'siswa', kelas: KELAS, sekolah: SEKOLAH })),
+];
+
 export const INITIAL_MATERIALS = [
   {
     id: 'mat-1',
