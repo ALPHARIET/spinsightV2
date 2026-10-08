@@ -21,9 +21,7 @@ export function generateTopics({ judul, mapel, teks, jumlah = 8 }) {
 function localAnalysis({ jawaban, topik, materi }) {
   const seg = segmentArgument(jawaban);
   const pick = (t) => seg.segments.filter((s) => s.type === t).map((s) => s.text);
-  const base = aiService.evaluateStudentAnswer(topik, jawaban, materi);
-  const poin = materi?.poinKunci || [];
-  const matched = base.materi?.poin || [];
+  const base = aiService.evaluateStudentAnswer(topik, jawaban, materi?.poinKunci);
   return {
     sumber: 'lokal',
     relevan: jawaban.split(/\s+/).length >= 10,
@@ -41,8 +39,8 @@ function localAnalysis({ jawaban, topik, materi }) {
     asumsi: null,
     pertanyaanLanjutan: '',
     materi: {
-      dipakai: matched.map((p, i) => (p.disinggung ? { poin: i, kutipan: '' } : null)).filter(Boolean),
-      bisaDipakai: matched.map((p, i) => (!p.disinggung ? i : null)).filter((i) => i !== null && i < poin.length),
+      dipakai: base.poinDisinggung.map((ya, i) => (ya ? { poin: i, kutipan: '' } : null)).filter(Boolean),
+      bisaDipakai: base.poinDisinggung.map((ya, i) => (ya ? null : i)).filter((i) => i !== null),
     },
   };
 }

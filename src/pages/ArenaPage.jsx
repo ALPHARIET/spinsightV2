@@ -117,7 +117,7 @@ export const ArenaPage = () => {
                 <span className="posmap-axis" style={{ top: 10, left: '50%', transform: 'translateX(8px)' }}>Fokus dampak</span>
                 <span className="posmap-axis" style={{ bottom: 10, left: '50%', transform: 'translateX(8px)' }}>Fokus prinsip</span>
                 {posts.map((p) => {
-                  const me = p.siswaNama === currentUser?.nama;
+                  const me = p.siswaId === currentUser?.id;
                   return (
                     <button
                       key={p.id}
@@ -163,7 +163,7 @@ export const ArenaPage = () => {
             )}
 
             {posts.map((post) => {
-              const me = post.siswaNama === currentUser?.nama;
+              const me = post.siswaId === currentUser?.id;
               return (
                 <article
                   key={post.id}

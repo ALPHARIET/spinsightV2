@@ -4,10 +4,9 @@ const TOXIC = ['bodoh', 'goblok', 'tolol', 'sesat', 'sampah', 'jelek'];
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export const aiService = {
-  evaluateStudentAnswer(caseItem, studentAnswer, material = null) {
+  evaluateStudentAnswer(caseItem, studentAnswer, poinKunci = []) {
     const transcript = (studentAnswer || '').trim();
     const cermin = this.analyzeArgumentStructure(transcript);
-    const materi = this.matchMaterialPoints(material, transcript);
 
     let kekuatan;
     let perbaikan;
@@ -30,24 +29,15 @@ export const aiService = {
       skor: cermin.skorArgumen,
       feedback: `${kekuatan} ${perbaikan}`,
       cermin,
-      materi,
+      poinDisinggung: this.matchMaterialPoints(poinKunci, transcript),
     };
   },
 
-  matchMaterialPoints(material, transcript) {
-    if (!material) return null;
-    const text = (transcript || '').toLowerCase();
-    const sumber = material.poinKunci?.length
-      ? material.poinKunci
-      : (material.deskripsi || '')
-          .split(/[.;]\s*/)
-          .filter((t) => t.trim().length > 20)
-          .map((t) => ({ teks: t.trim() + '.', kata: t.toLowerCase().split(/\W+/).filter((w) => w.length > 6).slice(0, 4) }));
-    const poin = sumber.map((p) => ({
-      ...p,
-      disinggung: (p.kata || []).some((k) => new RegExp(`(^|[^a-z0-9])${escapeRegex(k.toLowerCase())}`, 'i').test(text)),
-    }));
-    return { id: material.id, judul: material.judul, poin };
+  matchMaterialPoints(poinKunci, transcript) {
+    const text = transcript.toLowerCase();
+    return poinKunci.map((p) =>
+      (p.kata || []).some((k) => new RegExp(`(^|[^a-z0-9])${escapeRegex(k.toLowerCase())}`, 'i').test(text))
+    );
   },
 
   analyzeArgumentStructure(transcript) {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { MessageSquare, Send, Search, PlusCircle, Heart, ShieldCheck, X, MessageCircle } from 'lucide-react';
+import { MessageSquare, Send, Search, PlusCircle, Heart, X, MessageCircle } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { colorFor, formatTanggal, initials, isGuru } from '../lib/labels';
 
@@ -153,28 +153,6 @@ export const ForumDiskusi = () => {
                 ))}
               </select>
             </div>
-
-            <div style={{ fontSize: '0.84rem', color: 'var(--muted)', textAlign: 'right' }}>
-              Menampilkan <strong>{filteredPosts.length}</strong> utas diskusi studi kasus
-            </div>
-          </div>
-        </div>
-
-        <div style={{
-          background: 'var(--subtle)',
-          border: '1px solid var(--line)',
-          borderRadius: 'var(--r-inner)',
-          padding: '1rem 1.4rem',
-          marginBottom: '2rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.85rem',
-          color: 'var(--ink-2)',
-          fontSize: '0.86rem'
-        }}>
-          <ShieldCheck size={20} style={{ color: 'var(--bukti-ink)', flexShrink: 0 }} />
-          <div>
-            <strong>Pedoman Diskusi Berbobot:</strong> Setiap tanggapan diwajibkan menyertakan argumen logis ("karena...") dan bukti pembanding, serta saling menghargai keberagaman perspektif nalar antarsiswa dan bapak/ibu guru.
           </div>
         </div>
 

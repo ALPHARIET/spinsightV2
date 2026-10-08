@@ -46,7 +46,7 @@ Jika AI tidak tersedia (key kosong, offline, kuota habis), analisis jawaban mema
 ## 🚀 Menjalankan Aplikasi Secara Lokal
 
 ### Prasyarat
-- Node.js 18 ke atas
+- Node.js 20.6 ke atas
 - API key LLM, misalnya gratis dari [Google AI Studio](https://aistudio.google.com/apikey). Tier gratis dibatasi sekitar 20 permintaan per hari per model.
 
 ### Langkah
@@ -115,27 +115,35 @@ spinsight/
 ├── src/
 │   ├── components/
 │   │   ├── Navbar.jsx              # Navigasi atas + tab bar HP
+│   │   ├── AuthDialog.jsx          # Masuk / daftar + akun contoh
 │   │   ├── SlotReel.jsx            # Spin topik bergaya slot + tuas
-│   │   ├── MateriForge.jsx         # Guru: materi → topik AI → terbitkan
+│   │   ├── TimerRing.jsx           # Timer cincin 120 detik
 │   │   ├── Stabilo.jsx             # Highlight klaim/alasan/bukti
-│   │   ├── PracticeBits.jsx        # Timer cincin & lampu argumen
-│   │   └── ProgressChart.jsx       # Grafik perkembangan di Jurnal
+│   │   ├── ProgressChart.jsx       # Grafik perkembangan di Jurnal
+│   │   ├── KelasPanel.jsx          # Guru: kelas, kode undangan, anggota
+│   │   ├── RekapPanel.jsx          # Guru: rekap nilai siswa + detail AI
+│   │   ├── MateriForge.jsx         # Guru: materi → topik AI → terbitkan
+│   │   ├── BankTopikPanel.jsx      # Guru: kelola topik di spin siswa
+│   │   └── ModerasiPanel.jsx       # Guru: tutup diskusi & sintesis kelas
 │   ├── context/
 │   │   └── AppContext.jsx          # State manajemen siklus tertutup
 │   ├── data/
 │   │   └── seedData.js             # Data awal materi, kasus, dan telemetri
 │   ├── pages/
 │   │   ├── LandingPage.jsx         # Landing page & demo spin publik
-│   │   ├── DashboardPendamping.jsx # Pilar 1: Case Forge modul guru
+│   │   ├── DashboardPendamping.jsx # Portal guru: statistik + navigasi modul
+│   │   ├── GabungKelas.jsx         # Siswa: masuk kelas dengan kode
 │   │   ├── SpinArena.jsx           # Pilar 2 & 3: Roda, rekam, Insight Panel
 │   │   ├── ArenaPage.jsx           # Pilar 4: Forum terkunci & Peta Posisi 2D
+│   │   ├── ForumDiskusi.jsx        # Forum diskusi kelas
 │   │   └── JurnalSiswa.jsx         # Jurnal reflektif 5 dimensi nalar
 │   ├── services/
+│   │   ├── dataClient.js           # Sesi login + panggilan /api/auth & /api/data
 │   │   ├── aiClient.js             # Panggilan ke /api/* + cadangan lokal
 │   │   └── aiService.js            # Heuristik lokal (mode cadangan)
 │   ├── App.jsx
 │   ├── main.jsx
-│   ├── lib/                        # argument.js (pemecah stabilo), labels.js
+│   ├── lib/                        # argument.js (pemecah stabilo), labels.js, extractText.js, sfx.js
 │   ├── hooks/useSpeech.js          # Web Speech API + gelombang mikrofon asli
 │   └── index.css                   # Token desain (referensi Miro)
 ├── api/                            # Vercel Functions: auth, data, topics, analyze, status

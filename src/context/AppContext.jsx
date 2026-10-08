@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { aiService } from '../services/aiService';
 import { analyzeAnswer } from '../services/aiClient';
 import { authApi, dataApi, getSession, setSession } from '../services/dataClient';
-import { stamp } from '../lib/labels';
+import { isGuru, stamp } from '../lib/labels';
 
 const AppContext = createContext();
 
@@ -196,7 +196,7 @@ export const AppProvider = ({ children }) => {
     setSession(session);
     const d = await loadData(readLocal(ACTIVE_CLASS_KEY), { force: true });
     if (!d) throw new Error('Berhasil masuk, tapi data kelas gagal dimuat. Coba muat ulang halaman.');
-    setActivePage(d.me?.role === 'pendamping' ? 'pendamping' : 'spin');
+    setActivePage(isGuru(d.me) ? 'pendamping' : 'spin');
   };
 
   const login = async (email, password) => afterLogin(await authApi('signin', { email, password }));

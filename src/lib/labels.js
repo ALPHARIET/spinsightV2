@@ -6,6 +6,11 @@ export const BLOOM = {
 
 export const bloomOf = (level) => BLOOM[level] || BLOOM.Analisis;
 
+export const KKM = 75;
+export const SKOR_SANGAT_BAIK = 85;
+
+export const scoreTone = (skor) => (skor >= SKOR_SANGAT_BAIK ? 'bukti' : skor >= KKM ? 'alasan' : 'klaim');
+
 const AVATAR_COLORS = ['#FFD02F', '#FFC6C6', '#C3FAF5', '#DDE3FF', '#FFE6CD', '#FFD8F4', '#D5F2C8'];
 
 export const colorFor = (str = '') => {
